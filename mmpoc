@@ -1,0 +1,267 @@
+CREATE TABLE TS_CUSTOMER_DATA
+(
+    TS_CUST_ACCT_ID                   CHAR(7),
+    TS_CUST_PRM_LEVEL_IND             CHAR(1),
+    TS_CUST_OPT_IN_ALL3_IND           CHAR(1),
+    TS_CUST_EMAIL_OPEN_RATE_12MO_PCT  DECIMAL(4,3),
+    TS_CUST_PGM_ENROLL_DT             DATE,
+    TS_CUST_AEM_CURR_QTY              INTEGER,
+    TS_CUST_LYLTY_PGM_ENROLL_SRC_CD   VARCHAR2(30),
+    TS_CUST_PGM_TODT_AEM_QTY          INTEGER,
+    TS_CUST_TP_FLIGHT_SEG_24MO_QTY    INTEGER,
+    TS_CUST_LYLTY_ACCT_LAST_ACTVTY_DT DATE,
+    TS_CUST_OA_FLIGHT_24MO_QTY        INTEGER,
+    TS_CUST_FLIGHT_REDMPN_TRANS_24MO_QTY INTEGER,
+    TS_CUST_TRIP_12MO_QTY             INTEGER,
+    TS_CUST_REVNUE_TRIP_12MO_QTY      INTEGER,
+    TS_CUST_AWD_TRIP_12MO_QTY         INTEGER,
+    TS_CUST_REVNUE_OA_TRIP_12MO_QTY   INTEGER,
+    TS_CUST_AWD_OA_TRIP_12MO_QTY      INTEGER,
+    TS_CUST_DISCRETIONARY_TRIP_12MO_QTY INTEGER,
+    TS_CUST_NON_DISCRETIONARY_TRIP_12MO_QTY INTEGER,
+    TS_CUST_BLENDED_TRIP_12MO_QTY     INTEGER,
+    TS_CUST_DIRECT_BKG_CHANL_TRIP_12MO_PCT DECIMAL(4,3),
+    TS_CUST_MULTI_PARTY_TRIP_12MO_PCT DECIMAL(4,3),
+    TS_CUST_REVNUE_TP_FUTURE_TRIP_QTY INTEGER,
+    TS_CUST_AWD_FUTURE_TRIP_QTY       INTEGER,
+    TS_CUST_REVNUE_OA_FUTURE_TRIP_QTY INTEGER,
+    TS_CUST_AEM_EARN_24MO_QTY         INTEGER,
+    TS_CUST_NANB_EARN_AEM_12MO_QTY    INTEGER,
+    TS_CUST_AWD_FLIGHT_SEG_12MO_QTY   INTEGER,
+    TS_CUST_NANB_PURCHS_AEM_12MO_QTY  INTEGER,
+    TS_CUST_NANB_PARTNR_12MO_QTY      INTEGER,
+    TS_CUST_NANB_TRANS_12MO_QTY       INTEGER,
+    TS_CUST_LATEST_RES_CREATE_DT      DATE,
+    TS_CUST_RES_INACTIVITY_DAY_QTY    INTEGER,
+    TS_CUST_LOUNGE_VISIT_12MO_QTY     INTEGER,
+    TS_CUST_EXPD_CARD_QTY             INTEGER,
+    TS_CUST_LATEST_FLIGHT_DT          DATE,
+    TS_CUST_LATEST_INTL_FLIGHT_DT     DATE,
+    TS_CUST_EXPD_PLAT_CARD_QTY        INTEGER,
+    TS_CUST_FIRST_NM                  VARCHAR2(200),
+    TS_CUST_LAST_NM                   VARCHAR2(200),
+    TS_CUST_BIRTH_DT                  DATE,
+    TS_CUST_STREET_LINE_1_TXT         VARCHAR2(200),
+    TS_CUST_STREET_LINE_2_TXT         VARCHAR2(100),
+    TS_CUST_CITY_NM                   VARCHAR2(100),
+    TS_CUST_POSTAL_CD                 VARCHAR2(25),
+    TS_CUST_PHONE_NBR                 VARCHAR2(20),
+    TS_CUST_EMAIL_ADDR_TXT            VARCHAR2(100)
+)
+PARTITION BY RANGE (TS_CUST_PGM_ENROLL_DT)
+INTERVAL(NUMTOYMINTERVAL(1, 'MONTH')) -- automatic monthly partitioning
+(
+  PARTITION p_start VALUES LESS THAN (TO_DATE('2020-01-01', 'YYYY-MM-DD'))
+);
+
+DECLARE
+  v_first_names  SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('John', 'Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Mason', 'Sophia', 'Lucas', 'Isabella');
+  v_last_names   SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Martinez', 'Wilson');
+  v_cities       SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('Dallas', 'Austin', 'Houston', 'San Antonio', 'Fort Worth', 'Plano', 'Frisco', 'Irving', 'Garland', 'Arlington');
+  v_streets      SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('Main St', 'Elm St', 'Oak Ave', 'Maple Rd', 'Pine Ln', 'Cedar Blvd', 'Hilltop Dr', 'Lakeview Ct', 'Sunset Blvd', 'River Rd');
+  v_states       SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('TX', 'CA', 'NY', 'FL', 'IL');
+
+  FUNCTION rand_int(minval INT, maxval INT) RETURN INT IS
+  BEGIN
+    RETURN TRUNC(DBMS_RANDOM.VALUE(minval, maxval + 1));
+  END;
+BEGIN
+  FOR i IN 1 .. 1000000 LOOP
+    INSERT INTO TS_CUSTOMER_DATA (
+      TS_CUST_ACCT_ID,
+      TS_CUST_PRM_LEVEL_IND,
+      TS_CUST_OPT_IN_ALL3_IND,
+      TS_CUST_EMAIL_OPEN_RATE_12MO_PCT,
+      TS_CUST_PGM_ENROLL_DT,
+      TS_CUST_AEM_CURR_QTY,
+      TS_CUST_LYLTY_PGM_ENROLL_SRC_CD,
+      TS_CUST_PGM_TODT_AEM_QTY,
+      TS_CUST_TP_FLIGHT_SEG_24MO_QTY,
+      TS_CUST_LYLTY_ACCT_LAST_ACTVTY_DT,
+      TS_CUST_OA_FLIGHT_24MO_QTY,
+      TS_CUST_FLIGHT_REDMPN_TRANS_24MO_QTY,
+      TS_CUST_TRIP_12MO_QTY,
+      TS_CUST_REVNUE_TRIP_12MO_QTY,
+      TS_CUST_AWD_TRIP_12MO_QTY,
+      TS_CUST_REVNUE_OA_TRIP_12MO_QTY,
+      TS_CUST_AWD_OA_TRIP_12MO_QTY,
+      TS_CUST_DISCRETIONARY_TRIP_12MO_QTY,
+      TS_CUST_NON_DISCRETIONARY_TRIP_12MO_QTY,
+      TS_CUST_BLENDED_TRIP_12MO_QTY,
+      TS_CUST_DIRECT_BKG_CHANL_TRIP_12MO_PCT,
+      TS_CUST_MULTI_PARTY_TRIP_12MO_PCT,
+      TS_CUST_REVNUE_TP_FUTURE_TRIP_QTY,
+      TS_CUST_AWD_FUTURE_TRIP_QTY,
+      TS_CUST_REVNUE_OA_FUTURE_TRIP_QTY,
+      TS_CUST_AEM_EARN_24MO_QTY,
+      TS_CUST_NANB_EARN_AEM_12MO_QTY,
+      TS_CUST_AWD_FLIGHT_SEG_12MO_QTY,
+      TS_CUST_NANB_PURCHS_AEM_12MO_QTY,
+      TS_CUST_NANB_PARTNR_12MO_QTY,
+      TS_CUST_NANB_TRANS_12MO_QTY,
+      TS_CUST_LATEST_RES_CREATE_DT,
+      TS_CUST_RES_INACTIVITY_DAY_QTY,
+      TS_CUST_LOUNGE_VISIT_12MO_QTY,
+      TS_CUST_EXPD_CARD_QTY,
+      TS_CUST_LATEST_FLIGHT_DT,
+      TS_CUST_LATEST_INTL_FLIGHT_DT,
+      TS_CUST_EXPD_PLAT_CARD_QTY,
+      TS_CUST_FIRST_NM,
+      TS_CUST_LAST_NM,
+      TS_CUST_BIRTH_DT,
+      TS_CUST_STREET_LINE_1_TXT,
+      TS_CUST_STREET_LINE_2_TXT,
+      TS_CUST_CITY_NM,
+      TS_CUST_POSTAL_CD,
+      TS_CUST_PHONE_NBR,
+      TS_CUST_EMAIL_ADDR_TXT
+    )
+    VALUES (
+      LPAD(i, 7, '0'),
+      CASE MOD(i, 3) WHEN 0 THEN 'Y' WHEN 1 THEN 'N' ELSE 'U' END,
+      CASE MOD(i, 2) WHEN 0 THEN 'Y' ELSE 'N' END,
+      ROUND(DBMS_RANDOM.VALUE(0, 1), 3),
+      TRUNC(SYSDATE - DBMS_RANDOM.VALUE(0, 365 * 3)),
+      rand_int(0, 50),
+      CASE MOD(i, 4) WHEN 0 THEN 'WEB' WHEN 1 THEN 'MOBILE' WHEN 2 THEN 'KIOSK' ELSE 'EMAIL' END,
+      rand_int(0, 100),
+      rand_int(0, 20),
+      TRUNC(SYSDATE - DBMS_RANDOM.VALUE(0, 180)),
+      rand_int(0, 30),
+      rand_int(0, 30),
+      rand_int(0, 15),
+      rand_int(100, 1000),
+      rand_int(0, 15),
+      rand_int(100, 1000),
+      rand_int(0, 10),
+      rand_int(0, 10),
+      rand_int(0, 20),
+      rand_int(0, 20),
+      ROUND(DBMS_RANDOM.VALUE(0, 1), 3),
+      rand_int(0, 5),
+      rand_int(0, 3),
+      rand_int(0, 3),
+      rand_int(0, 500),
+      rand_int(0, 100),
+      rand_int(0, 100),
+      rand_int(0, 100),
+      rand_int(0, 50),
+      rand_int(0, 10),
+      rand_int(0, 30),
+      TRUNC(SYSDATE - DBMS_RANDOM.VALUE(0, 180)),
+      rand_int(0, 365),
+      rand_int(0, 10),
+      rand_int(0, 2),
+      TRUNC(SYSDATE - DBMS_RANDOM.VALUE(0, 90)),
+      TRUNC(SYSDATE - DBMS_RANDOM.VALUE(0, 180)),
+      rand_int(0, 5),
+      v_first_names(MOD(i, v_first_names.COUNT) + 1),
+      v_last_names(MOD(i, v_last_names.COUNT) + 1),
+      TRUNC(SYSDATE - DBMS_RANDOM.VALUE(365*20, 365*70)), -- realistic birth date
+      rand_int(100, 999) || ' ' || v_streets(MOD(i, v_streets.COUNT) + 1),
+      'Apt ' || TO_CHAR(MOD(i, 999)),
+      v_cities(MOD(i, v_cities.COUNT) + 1),
+      TO_CHAR(rand_int(10000, 99999)),
+      '555' || TO_CHAR(1000000 + MOD(i, 999999)),
+      LOWER(v_first_names(MOD(i, v_first_names.COUNT) + 1)) || '.' || LOWER(v_last_names(MOD(i, v_last_names.COUNT) + 1)) || '@example.com'
+    );
+
+    IF MOD(i, 10000) = 0 THEN
+      COMMIT;
+    END IF;
+  END LOOP;
+
+  COMMIT;
+END;
+/
+
+
+import multiprocessing
+import csv
+from faker import Faker
+import random
+
+fake = Faker()
+rows_per_worker = 100000  # Adjust per worker
+num_workers = 10          # 10 x 100,000 = 1 million rows
+
+def generate_rows(start, count, file_path):
+    first_names = ['John', 'Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Mason', 'Sophia', 'Lucas', 'Isabella']
+    last_names = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Martinez', 'Wilson']
+    cities = ['Dallas', 'Austin', 'Houston', 'San Antonio', 'Fort Worth', 'Plano', 'Frisco', 'Irving', 'Garland', 'Arlington']
+    streets = ['Main St', 'Elm St', 'Oak Ave', 'Maple Rd', 'Pine Ln', 'Cedar Blvd', 'Hilltop Dr', 'Lakeview Ct', 'Sunset Blvd', 'River Rd']
+
+    def rand_date(start_days_ago, end_days_ago):
+        return fake.date_between(start_date=f'-{start_days_ago}d', end_date=f'-{end_days_ago}d')
+
+    with open(file_path, 'w', newline='') as f:
+        writer = csv.writer(f)
+        for i in range(start, start + count):
+            first_name = first_names[i % len(first_names)]
+            last_name = last_names[i % len(last_names)]
+            city = cities[i % len(cities)]
+            row = [
+                str(i).zfill(7),
+                random.choice(['Y', 'N', 'U']),
+                random.choice(['Y', 'N']),
+                round(random.uniform(0, 1), 3),
+                rand_date(1095, 0),
+                random.randint(0, 50),
+                random.choice(['WEB', 'MOBILE', 'KIOSK', 'EMAIL']),
+                random.randint(0, 100),
+                random.randint(0, 20),
+                rand_date(180, 0),
+                random.randint(0, 30),
+                random.randint(0, 30),
+                random.randint(0, 15),
+                random.randint(100, 1000),
+                random.randint(0, 15),
+                random.randint(100, 1000),
+                random.randint(0, 10),
+                random.randint(0, 10),
+                random.randint(0, 20),
+                random.randint(0, 20),
+                round(random.uniform(0, 1), 3),
+                random.randint(0, 5),
+                random.randint(0, 3),
+                random.randint(0, 3),
+                random.randint(0, 500),
+                random.randint(0, 100),
+                random.randint(0, 100),
+                random.randint(0, 100),
+                random.randint(0, 50),
+                random.randint(0, 10),
+                rand_date(180, 0),
+                random.randint(0, 365),
+                random.randint(0, 10),
+                random.randint(0, 2),
+                rand_date(90, 0),
+                rand_date(180, 0),
+                random.randint(0, 5),
+                first_name,
+                last_name,
+                rand_date(25550, 7300),
+                f"{random.randint(100,999)} {streets[i % len(streets)]}",
+                f"Apt {random.randint(1, 999)}",
+                city,
+                str(random.randint(10000, 99999)),
+                f"555{random.randint(1000000, 9999999)}",
+                f"{first_name.lower()}.{last_name.lower()}@example.com"
+            ]
+            writer.writerow(row)
+
+# Launch parallel workers
+if __name__ == '__main__':
+    jobs = []
+    for w in range(num_workers):
+        start = w * rows_per_worker + 1
+        fname = f'sample_part_{w+1}.csv'
+        p = multiprocessing.Process(target=generate_rows, args=(start, rows_per_worker, fname))
+        jobs.append(p)
+        p.start()
+
+    for job in jobs:
+        job.join()
+
+
+
