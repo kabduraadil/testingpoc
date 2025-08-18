@@ -1,0 +1,170 @@
+import re
+import json
+from fuzzywuzzy import fuzz
+
+# -----------------------------
+# 1️⃣ Historical patterns
+# -----------------------------
+history_path = "dq_history.json"
+try:
+    with open(history_path, "r") as f:
+        history = json.load(f)
+except:
+    history = []
+
+# -----------------------------
+# 2️⃣ Parse single condition
+# -----------------------------
+def parse_condition(cond: str) -> str:
+    cond = cond.strip()
+    patterns = [
+        (r"IsEqual\((\w+)\s*=\s*([^)]+)\)", lambda m: f"{m.group(1)} = '{m.group(2).strip()}'"),
+        (r"IsIn\((\w+);\s*\{([^}]+)\}\)", lambda m: f"{m.group(1)} IN ({', '.join([f\"'{v.strip()}'\" for v in m.group(2).split(',')])})"),
+        (r"IsGreaterThanOrEqual\((\w+);\s*([^)]+)\)", lambda m: f"{m.group(1)} >= {m.group(2).strip()}"),
+        (r"IsLessThanOrEqual\((\w+);\s*([^)]+)\)", lambda m: f"{m.group(1)} <= {m.group(2).strip()}"),
+        (r"NotInRange\((\w+);\s*([^;]+);\s*([^)]+)\)", lambda m: f"NOT({m.group(1)} BETWEEN {m.group(2).strip()} AND {m.group(3).strip()})")
+    ]
+    for pattern, func in patterns:
+        m = re.match(pattern, cond, re.IGNORECASE)
+        if m: return func(m)
+    return None
+
+# -----------------------------
+# 3️⃣ Parse nested AND/OR
+# -----------------------------
+def parse_logical_expression(expr: str) -> str:
+    expr = expr.strip()
+    while expr.startswith("(") and expr.endswith(")"): expr = expr[1:-1].strip()
+    or_parts = [p.strip() for p in re.split(r"\bOR\b", expr, flags=re.IGNORECASE)]
+    parsed_or = []
+    for part in or_parts:
+        and_parts = [parse_condition(p.strip()) if "(" not in p else parse_logical_expression(p.strip()) 
+                     for p in re.split(r"\bAND\b", part, flags=re.IGNORECASE)]
+        parsed_or.append(" AND ".join(and_parts))
+    return " OR ".join(f"({p})" if " AND " in p else p for p in parsed_or)
+
+# -----------------------------
+# 4️⃣ Nearest historical pattern
+# -----------------------------
+def nearest_historical_pattern(dq_expr: str, threshold=60):
+    func_name_match = re.match(r"(\w+)\(", dq_expr.strip())
+    if not func_name_match: return None
+    func_name = func_name_match.group(1)
+    best_match = None
+    best_score = 0
+    for entry in history:
+        score = fuzz.ratio(func_name.lower(), entry["pattern_name"].lower())
+        if score > best_score:
+            best_score = score
+            best_match = entry
+    if best_score >= threshold:
+        return best_match, best_score
+    return None, best_score
+
+# -----------------------------
+# 5️⃣ Self-learning parser
+# -----------------------------
+def self_learning_parser(dq_expr: str):
+    match, score = nearest_historical_pattern(dq_expr)
+    if match:
+        func_type = match["pattern_name"]
+        constraint = match.get("constraint", "compliance")
+    else:
+        # Unknown pattern → add to history
+        func_type = re.match(r"(\w+)\(", dq_expr.strip()).group(1)
+        constraint = "compliance"
+        history.append({
+            "pattern_name": func_type,
+            "example_rule": dq_expr,
+            "constraint": constraint
+        })
+    
+    # Handle IsNullPrecondition
+    if "IsNullPrecondition" in func_type:
+        m = re.match(r"IsNullPrecondition\(\((\w+)\);\s*(.+)\)$", dq_expr.strip(), re.IGNORECASE)
+        if not m: raise ValueError("Cannot parse IsNullPrecondition")
+        attr1, cond_expr = m.groups()
+        where_clause = parse_logical_expression(cond_expr)
+        return {
+            "constraint": constraint,
+            "column": attr1,
+            "where": where_clause,
+            "assertion": ">= 1.0",
+            "level": "Error",
+            "description": f"Ensure {attr1} is not NULL whenever {where_clause}"
+        }
+    else:
+        rule = parse_condition(dq_expr)
+        if not rule: rule = dq_expr
+        return {
+            "constraint": constraint,
+            "column": "custom_case_rule",
+            "rule": rule,
+            "assertion": ">= 1.0",
+            "level": "Error",
+            "description": f"Check condition: {rule}"
+        }
+
+# -----------------------------
+# 6️⃣ Save history
+# -----------------------------
+def save_history():
+    with open(history_path, "w") as f:
+        json.dump(history, f, indent=2)
+
+
+
+
+-----2
+import streamlit as st
+import pandas as pd
+import json
+from dq_parser import self_learning_parser, history, save_history
+
+st.title("Self-Learning DQ Rule → AWS Deequ JSON Converter 🚀")
+
+# Upload file
+uploaded_file = st.file_uploader("Upload Excel or Hive SQL", type=["xlsx", "xls", "sql"])
+rules_list = []
+
+if uploaded_file:
+    if uploaded_file.name.endswith(".sql"):
+        lines = uploaded_file.read().decode("utf-8").splitlines()
+        rules_list = [{"rule_id": i+1, "dq_function": line.strip()} for i, line in enumerate(lines) if line.strip()]
+    else:
+        df = pd.read_excel(uploaded_file)
+        if "dq_function" not in df.columns:
+            st.error("Excel must have column 'dq_function'")
+        else:
+            rules_list = df.to_dict(orient="records")
+
+# Parse rules
+if rules_list:
+    st.subheader("Parsed Deequ JSON")
+    deequ_json_list = []
+    failed_rules = []
+
+    for rule in rules_list:
+        dq_func = rule["dq_function"]
+        try:
+            deequ_json = self_learning_parser(dq_func)
+            deequ_json["rule_id"] = rule["rule_id"]
+            deequ_json_list.append(deequ_json)
+        except Exception as e:
+            failed_rules.append({"rule_id": rule["rule_id"], "dq_function": dq_func, "error": str(e)})
+
+    st.json(deequ_json_list)
+
+    if failed_rules:
+        st.warning(f"{len(failed_rules)} rules failed parsing")
+        st.write(failed_rules)
+
+# Show historical patterns
+st.subheader("Historical Patterns Knowledge Base")
+st.write(history)
+
+# Save updated patterns
+if st.button("Save Updated Patterns"):
+    save_history()
+    st.success("Historical patterns saved successfully!")
+
