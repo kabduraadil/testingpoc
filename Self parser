@@ -1,3 +1,155 @@
+
+
+
+{
+  "IsNullWithPreCond": {
+    "json_template": {
+      "_comment": "{rule_id}|{table}|{column}",
+      "name": "satisfies",
+      "args": {
+        "column": "CAST({column} AS decimal(38,18)) is null"
+      },
+      "condition": "== 1.0",
+      "where_cond": "{where_condition}"
+    },
+    "placeholders": ["rule_id", "table", "column", "where_condition"]
+  },
+  "LTECheckWithPreCond": {
+    "json_template": {
+      "_comment": "{rule_id}|{table}|{column}",
+      "name": "satisfies",
+      "args": {
+        "column": "unix_timestamp({column},'ddMMMyyyy') <= unix_timestamp({compare_column},'ddMMMyyyy')"
+      },
+      "condition": "== 1.0",
+      "where_cond": "{where_condition}"
+    },
+    "placeholders": ["rule_id", "table", "column", "compare_column", "where_condition"]
+  }
+}
+
+
+
+import re
+import json
+import pandas as pd
+from collections import defaultdict
+import streamlit as st
+from io import BytesIO
+
+PATTERN_FILE = "patterns.json"
+
+
+# ---------------- Rule Parser ----------------
+class RuleParser:
+    def __init__(self, pattern_file=PATTERN_FILE):
+        try:
+            with open(pattern_file, "r") as f:
+                self.patterns = json.load(f)
+        except FileNotFoundError:
+            self.patterns = {}
+        self.pattern_file = pattern_file
+
+    def save_patterns(self):
+        with open(self.pattern_file, "w") as f:
+            json.dump(self.patterns, f, indent=2)
+
+    def get_func_name(self, rule):
+        func = re.match(r"(\w+)\(", rule)
+        return func.group(1) if func else None
+
+    def parse_rule(self, rule, rule_id):
+        func_name = self.get_func_name(rule)
+        if not func_name:
+            return {"error": "Invalid rule format"}
+
+        if func_name not in self.patterns:
+            return {"unknown_pattern": func_name, "rule": rule}
+
+        # Use known template
+        pattern = self.patterns[func_name]
+        json_template = pattern["json_template"]
+
+        args = re.findall(r"<(.*?)>", rule)
+        conds = re.findall(r"\{(.*?)\}", rule)
+
+        data = {
+            "rule_id": rule_id,
+            "rule": rule,
+            "table": args[0].split(".")[0] if args else "",
+            "column": args[0].split(".")[-1] if args else "",
+            "compare_column": args[1].split(".")[-1] if len(args) > 1 else "",
+            "min_value": args[1] if len(args) > 1 else "",
+            "max_value": args[2] if len(args) > 2 else "",
+            "expected_value": args[1] if len(args) > 1 else "",
+            "where_condition": conds[0] if conds else ""
+        }
+
+        parsed_json = json.loads(json.dumps(json_template).format(**data))
+        return parsed_json
+
+
+# ---------------- Streamlit UI ----------------
+st.title("🧠 Self-Learning DSL → Deequ JSON Trainer (Cluster Mode)")
+
+uploaded_file = st.file_uploader("Upload Excel file with 'input rule' column", type=["xlsx"])
+
+if uploaded_file:
+    df = pd.read_excel(uploaded_file)
+    parser = RuleParser()
+
+    # Cluster unknowns
+    unknown_clusters = defaultdict(list)
+    parsed_results = []
+
+    for idx, row in df.iterrows():
+        rule = str(row["input rule"])
+        parsed = parser.parse_rule(rule, idx + 1)
+
+        if "unknown_pattern" in parsed:
+            unknown_clusters[parsed["unknown_pattern"]].append(rule)
+            parsed_results.append("{}")  # placeholder
+        else:
+            parsed_results.append(json.dumps(parsed))
+
+    # Train unknown patterns
+    if unknown_clusters:
+        st.subheader("⚠ Unknown Patterns Found")
+        for func_name, rules in unknown_clusters.items():
+            st.warning(f"Pattern `{func_name}` not defined. {len(rules)} rules need it.")
+            st.text(f"Example: {rules[0]}")
+
+            json_template_str = st.text_area(
+                f"Enter JSON template for `{func_name}` (use placeholders like {{column}}, {{where_condition}})",
+                height=200,
+                key=func_name
+            )
+
+            if st.button(f"Save Pattern `{func_name}`"):
+                try:
+                    parser.patterns[func_name] = {
+                        "json_template": json.loads(json_template_str),
+                        "placeholders": []
+                    }
+                    parser.save_patterns()
+                    st.success(f"✅ Pattern `{func_name}` saved! Re-run parsing.")
+                except Exception as e:
+                    st.error(f"Invalid JSON template: {e}")
+
+    # Write output Excel with placeholder JSON
+    df["aws json parsed rule"] = parsed_results
+    buffer = BytesIO()
+    df.to_excel(buffer, index=False)
+    buffer.seek(0)
+
+    st.download_button(
+        label="💾 Download Processed Excel",
+        data=buffer,
+        file_name="rules_with_json.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+-----------
 import re
 import json
 from fuzzywuzzy import fuzz
