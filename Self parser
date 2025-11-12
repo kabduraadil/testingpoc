@@ -320,3 +320,72 @@ if st.button("Save Updated Patterns"):
     save_history()
     st.success("Historical patterns saved successfully!")
 
+
+
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.oxml.xmlchemy import OxmlElement
+
+# Helper: add text box
+def add_textbox(slide, left, top, width, height, text, font_size=14, bold=False, color=RGBColor(0,0,0), fill_color=None):
+    shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
+    shape.text = text
+    shape.text_frame.paragraphs[0].font.size = Pt(font_size)
+    shape.text_frame.paragraphs[0].font.bold = bold
+    shape.text_frame.paragraphs[0].font.color.rgb = color
+    if fill_color:
+        fill = shape.fill
+        fill.solid()
+        fill.fore_color.rgb = fill_color
+    return shape
+
+# Helper: add dashed connector
+def add_dashed_connector(slide, shape1, shape2):
+    connector = slide.shapes.add_connector(
+        begin_x=shape1.left + shape1.width,
+        begin_y=shape1.top + shape1.height / 2,
+        end_x=shape2.left,
+        end_y=shape2.top + shape2.height / 2
+    )
+    ln = connector.line
+    ln.color.rgb = RGBColor(255, 0, 0)
+    ln.width = Pt(2)
+    ln.dash_style = "sysDot"
+
+# Create presentation
+prs = Presentation()
+slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank layout
+
+# Colors
+blue = RGBColor(0, 153, 204)
+light_blue = RGBColor(173, 216, 230)
+
+# Main "DQ Editor" block
+dq_editor = add_textbox(slide, Inches(1), Inches(1.5), Inches(8), Inches(4), "DQ Editor", font_size=16, bold=True, fill_color=blue)
+
+# Sub-boxes inside DQ Editor
+lob = add_textbox(slide, Inches(2), Inches(2.2), Inches(1.5), Inches(1), "LOB", fill_color=light_blue)
+dataset = add_textbox(slide, Inches(3.8), Inches(2.2), Inches(2), Inches(1), "Dataset\nPhysical-Logical", fill_color=light_blue)
+s3sql = add_textbox(slide, Inches(6.2), Inches(2.2), Inches(2.2), Inches(1.2), "S3 Rules JSON Dir\nSQL Dir", fill_color=light_blue)
+
+# Left side boxes
+pre_reg = add_textbox(slide, Inches(0.5), Inches(2), Inches(0.8), Inches(1.5), "Pre-\nRegistration", fill_color=light_blue)
+rules_onboard = add_textbox(slide, Inches(0.5), Inches(3.8), Inches(0.8), Inches(1.2), "Rules\nOnboarding", fill_color=light_blue)
+
+# Lower row
+dqip = add_textbox(slide, Inches(2.5), Inches(4.1), Inches(2), Inches(1), "DQIP template\nFile staging\n(New Rules)", fill_color=light_blue)
+pre_existing = add_textbox(slide, Inches(5.2), Inches(4.1), Inches(2.5), Inches(1), "Pre-existing Rules\nUpdate via UI", fill_color=light_blue)
+
+# Top box (Data Catalogue)
+data_catalogue = add_textbox(slide, Inches(3.5), Inches(0.6), Inches(3), Inches(0.8), "Data Catalogue", font_size=16, bold=True, fill_color=light_blue)
+
+# Add dashed arrow
+add_dashed_connector(slide, dqip, pre_existing)
+
+# Save
+prs.save("DQ_Architecture.pptx")
+print("✅ Generated 'DQ_Architecture.pptx'")
+
+
