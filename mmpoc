@@ -1,3 +1,28 @@
+context-engineered DQ rule authoring platform.
+
+The goal is:
+
+user selects a dataset
+system loads the prejoined SQL / JSON-SQL path
+system resolves all physical attributes in scope
+system enriches with catalog metadata
+user writes an English rule
+LLM converts it into validated AWS Deequ rule JSON/expression
+system stores, versions, and executes it safely
+
+So the LLM is not discovering the enterprise blindly.
+It is operating inside a strict boundary created by:
+
+dataset selection
+parsed prejoined SQL
+scoped attributes
+metadata enrichment
+rule template library
+validation gates
+
+
+
+
 {
   "dataset_context": {
     "dataset_id": "crd_arrg_dim",
